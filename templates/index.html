@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stok — TikTok &amp; Instagram downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23111318%22/><path d=%22M20 7v11.2a4.4 4.4 0 11-3.2-4.24V7h2.2a4 4 0 004 4V9a2 2 0 01-2-2z%22 fill=%22%2325F4EE%22/><path d=%22M18.6 7v11.2a4.4 4.4 0 11-3.2-4.24V16a2 2 0 102 2V7z%22 fill=%22%23FE2C55%22/></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <span class="brand-name">Stok</span>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <h1>Save any TikTok or Instagram post.</h1>
+    <p class="hero-sub">Paste a link and download the video, sound, or photos — straight to your device.</p>
+
+    <form id="fetch-form" class="fetch-bar" autocomplete="off">
+      <input id="url-input" type="text" inputmode="url" placeholder="Paste a TikTok or Instagram link…" aria-label="TikTok or Instagram URL" required>
+      <button type="submit" id="fetch-btn" class="btn btn-primary">
+        <span class="btn-label">Fetch</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <p id="form-error" class="form-error" role="alert" hidden></p>
+  </section>
+
+  <section id="result" class="result wrap" hidden>
+    <div class="card media-card">
+      <div class="media-card-media">
+        <img id="thumb" alt="" />
+        <span id="duration-badge" class="duration-badge"></span>
+      </div>
+      <div class="media-card-body">
+        <div class="author-row">
+          <img id="author-avatar" class="author-avatar" alt="" />
+          <div>
+            <div id="author-nickname" class="author-nickname"></div>
+            <div id="author-username" class="author-username"></div>
+          </div>
+        </div>
+
+        <p id="v-desc" class="v-desc"></p>
+
+        <div class="stats-row" id="stats-row"></div>
+
+        <div id="downloads-grid" class="format-grid"></div>
+
+        <div id="images-wrap" hidden>
+          <p class="images-label">Photo slideshow — <span id="images-count"></span></p>
+          <div id="images-grid" class="images-grid"></div>
+        </div>
+
+        <div id="dl-progress" class="dl-progress" hidden>
+          <div class="dl-progress-top">
+            <span id="dl-status">Starting download…</span>
+            <span id="dl-percent">0%</span>
+          </div>
+          <div class="dl-track"><div id="dl-fill" class="dl-fill"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p class="disclaimer-text">Only download content you have the rights to. Respect TikTok's and Instagram's Terms of Service and applicable copyright law.</p>
+    <p class="credit">Stok &middot; Developed by SuJit Thapa</p>
+  </div>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
