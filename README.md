@@ -123,6 +123,41 @@ python app.py
 Stok will load that saved session automatically. Without it, Stok simply
 tries anonymously, which works for plenty of public posts.
 
+## TikTok works locally but fails once deployed (e.g. on Render)
+
+If Instagram works fine in production but TikTok gives errors like
+`tikwm.com: 403 Client Error: Forbidden` or `TikTok API: Expecting value:
+line 1 column 1 (char 0)` — while the exact same code works locally — this
+is almost always TikTok/tikwm.com blocking the *host's* IP address, not a
+bug. Render, Railway, AWS, and basically every cloud/VPS provider egress
+from well-known datacenter IP ranges, and TikTok is much more willing to
+soft-block those than an ordinary home internet connection. Instagram
+isn't affected the same way (yet), which is exactly the pattern this
+produces.
+
+Two ways to fix it, in order of effort:
+
+1. **Route TikTok's requests through a proxy.** Set the `TIKTOK_PROXY_URL`
+   environment variable to a proxy URL, e.g.:
+
+   ```bash
+   export TIKTOK_PROXY_URL=http://user:pass@proxy-host:port
+   ```
+
+   `app.py` will send every tikwm.com / TikTok request (and TikTok CDN
+   downloads) through that proxy instead of Render's own IP — Instagram
+   traffic is untouched. Any residential/mobile proxy provider works; you
+   only need a small amount of bandwidth since it's just API calls plus
+   whatever videos get downloaded. Without this variable set, nothing
+   changes — it's fully optional.
+
+2. **Run Stok from your own connection instead**, and expose it publicly
+   with a tunnel like [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+   (free) or [ngrok](https://ngrok.com/) (free tier). This keeps your real
+   home IP for every request, which is what already works when you run
+   `python app.py` locally — you're just giving that same local process a
+   public URL instead of moving it to a datacenter.
+
 ## A note on legitimate use
 
 Stok is meant for saving content you own, that's Creative-Commons or

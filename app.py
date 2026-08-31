@@ -44,6 +44,12 @@ Differences from the original:
     Playwright browser automation / mass-download-by-username feature —
     just the single-link download, which is the part that works without
     installing anything.
+  * Cloud hosts (Render included) egress from datacenter IP ranges, which
+    TikTok/tikwm.com block far more readily than a residential IP — the
+    same code can work locally and fail every time once deployed. Set
+    TIKTOK_PROXY_URL (see below) to route just the TikTok-side requests
+    through a proxy if that happens; Instagram is unaffected and untouched
+    by this setting.
   For Instagram, a link to a single photo post, a single video/Reel, or a
   carousel (multiple photos/videos in one post) is read the same way,
   through instaloader's Post object — no watermark concept there, just
@@ -132,8 +138,10 @@ BROWSER_USER_AGENT = (
 TIKWM_API_URL = "https://www.tikwm.com/api/"
 
 # Hostnames media can legitimately come from. /api/download refuses to
-# proxy anything outside this list.
-ALLOWED_CDN_SUFFIXES = (
+# proxy anything outside this list. Split into TikTok-side vs. Instagram-
+# side so the optional outbound proxy below (which is TikTok-only) knows
+# which host group a given /api/download request belongs to.
+TIKTOK_CDN_SUFFIXES = (
     "tiktokcdn.com",
     "tiktokcdn-us.com",
     "tiktokcdn-eu.com",
@@ -146,10 +154,30 @@ ALLOWED_CDN_SUFFIXES = (
     "byteoversea.com",
     "bytecdn.com",
     "tikwm.com",
-    # Instagram / Facebook media CDN
+)
+INSTAGRAM_CDN_SUFFIXES = (
     "cdninstagram.com",
     "fbcdn.net",
 )
+ALLOWED_CDN_SUFFIXES = TIKTOK_CDN_SUFFIXES + INSTAGRAM_CDN_SUFFIXES
+
+# Optional outbound proxy, used only for requests to TikTok/tikwm.com.
+# Cloud hosts (Render included) egress from well-known datacenter IP
+# ranges, which TikTok and tikwm.com are far more willing to soft-block
+# (403, or a 200 with an empty body) than a residential IP — the same code
+# can work perfectly on a home connection and fail every time on Render.
+# Instagram isn't affected by this here, so it's left alone. If that's
+# what's happening, point this at a proxy (e.g. a cheap residential/mobile
+# proxy service) to route just the TikTok-side requests through a
+# non-datacenter IP: TIKTOK_PROXY_URL=http://user:pass@host:port. Leave it
+# unset to change nothing.
+TIKTOK_PROXY_URL = os.environ.get("TIKTOK_PROXY_URL", "").strip()
+
+
+def _proxy_kwargs() -> dict:
+    if not TIKTOK_PROXY_URL:
+        return {}
+    return {"proxies": {"http": TIKTOK_PROXY_URL, "https": TIKTOK_PROXY_URL}}
 
 
 def is_valid_tiktok_url(url: str) -> bool:
@@ -180,6 +208,7 @@ def resolve_final_url(url: str) -> str:
         timeout=15,
         headers={"User-Agent": BROWSER_USER_AGENT},
         stream=True,
+        **_proxy_kwargs(),
     )
     resp.close()
     return resp.url
@@ -198,6 +227,7 @@ def fetch_aweme(media_id: str, attempt: int = 1) -> dict:
         params={**FEED_API_STATIC_PARAMS, **_device_identity, "aweme_id": media_id},
         headers={"User-Agent": MOBILE_USER_AGENT},
         timeout=15,
+        **_proxy_kwargs(),
     )
     if resp.status_code == 429 and attempt <= 3:
         # This device identity is (or just became) rate-limited — mint a
@@ -229,8 +259,14 @@ def fetch_via_tikwm(url: str) -> dict:
     resp = requests.get(
         TIKWM_API_URL,
         params={"url": url, "hd": 1},
-        headers={"User-Agent": BROWSER_USER_AGENT},
+        headers={
+            "User-Agent": BROWSER_USER_AGENT,
+            "Referer": "https://www.tikwm.com/",
+            "Origin": "https://www.tikwm.com",
+            "Accept": "application/json, text/plain, */*",
+        },
         timeout=20,
+        **_proxy_kwargs(),
     )
     resp.raise_for_status()
     payload = resp.json()
@@ -541,12 +577,15 @@ def api_download():
     if not host or not any(host == suf or host.endswith("." + suf) for suf in ALLOWED_CDN_SUFFIXES):
         return error_response("That URL isn't a recognized TikTok or Instagram media host.", 400)
 
+    is_tiktok_host = any(host == suf or host.endswith("." + suf) for suf in TIKTOK_CDN_SUFFIXES)
+
     try:
         upstream = requests.get(
             src,
             headers={"User-Agent": BROWSER_USER_AGENT},
             stream=True,
             timeout=30,
+            **(_proxy_kwargs() if is_tiktok_host else {}),
         )
         upstream.raise_for_status()
     except requests.RequestException as exc:
